@@ -34,6 +34,7 @@ const char *aos_version_get(void)
 }
 AOS_EXPORT(const char *, aos_version_get, void);
 
+#if (RHINO_CONFIG_KOBJ_DYN_ALLOC > 0)
 int aos_task_new(const char *name, void (*fn)(void *), void *arg,
                  int stack_size)
 {
@@ -71,7 +72,7 @@ void aos_task_exit(int code)
     krhino_task_dyn_del(NULL);
 }
 AOS_EXPORT(void, aos_task_exit, int);
-
+#endif
 
 const char *aos_task_name(void)
 {
@@ -106,6 +107,7 @@ void aos_task_key_delete(aos_task_key_t key)
 }
 AOS_EXPORT(void, aos_task_key_delete, aos_task_key_t);
 
+#if (RHINO_CONFIG_TASK_INFO > 0)
 int aos_task_setspecific(aos_task_key_t key, void *vp)
 {
     int ret;
@@ -127,7 +129,9 @@ void *aos_task_getspecific(aos_task_key_t key)
     return vp;
 }
 AOS_EXPORT(void *, aos_task_getspecific, aos_task_key_t);
+#endif
 
+#if (RHINO_CONFIG_KOBJ_DYN_ALLOC > 0)
 int aos_mutex_new(aos_mutex_t *mutex)
 {
     kstat_t   ret;
@@ -219,16 +223,27 @@ AOS_EXPORT(int, aos_mutex_unlock, aos_mutex_t *);
 
 int aos_mutex_is_valid(aos_mutex_t *mutex)
 {
-    int ret;
+    kmutex_t *k_mutex;
 
     if (mutex == NULL) {
-        return false;
+        return 0;
     }
 
-    ret = krhino_mutex_is_valid(mutex->hdl);
-    return (ret == RHINO_SUCCESS);
-}
+    k_mutex = mutex->hdl;
 
+    if (k_mutex == NULL) {
+        return 0;
+    }
+
+    if (k_mutex->blk_obj.obj_type != RHINO_MUTEX_OBJ_TYPE) {
+        return 0;
+    }
+
+    return 1;
+}
+#endif
+
+#if ((RHINO_CONFIG_KOBJ_DYN_ALLOC > 0)&&(RHINO_CONFIG_SEM > 0))
 int aos_sem_new(aos_sem_t *sem, int count)
 {
     kstat_t ret;
@@ -303,14 +318,23 @@ AOS_EXPORT(void, aos_sem_signal, aos_sem_t *);
 
 int aos_sem_is_valid(aos_sem_t *sem)
 {
-    int ret;
+    ksem_t *k_sem;
 
     if (sem == NULL) {
-        return false;
+        return 0;
     }
 
-    ret = krhino_sem_is_valid(sem->hdl);
-    return (ret == RHINO_SUCCESS);
+    k_sem = sem->hdl;
+
+    if (k_sem == NULL) {
+        return 0;
+    }
+
+    if (k_sem->blk_obj.obj_type != RHINO_SEM_OBJ_TYPE) {
+        return 0;
+    }
+
+    return 1;
 }
 
 void aos_sem_signal_all(aos_sem_t *sem)
@@ -321,6 +345,9 @@ void aos_sem_signal_all(aos_sem_t *sem)
 
     krhino_sem_give_all(sem->hdl);
 }
+#endif
+
+#if (RHINO_CONFIG_EVENT_FLAG > 0)
 
 int aos_event_new(aos_event_t *event, unsigned int flags)
 {
@@ -388,6 +415,9 @@ int aos_event_set(aos_event_t *event, unsigned int flags, unsigned char opt)
 
     ERRNO_MAPPING(ret);
 }
+#endif
+
+#if (RHINO_CONFIG_BUF_QUEUE > 0)
 
 int aos_queue_new(aos_queue_t *queue, void *buf, unsigned int size, int max_msg)
 {
@@ -466,14 +496,23 @@ AOS_EXPORT(int, aos_queue_recv, aos_queue_t *, unsigned int, void *, unsigned in
 
 int aos_queue_is_valid(aos_queue_t *queue)
 {
-    int ret;
+    kbuf_queue_t *k_queue;
 
     if (queue == NULL) {
-        return false;
+        return 0;
     }
 
-    ret = krhino_buf_queue_is_valid(queue->hdl);
-    return (ret == RHINO_SUCCESS);
+    k_queue = queue->hdl;
+
+    if (k_queue == NULL) {
+        return 0;
+    }
+
+    if (k_queue->blk_obj.obj_type != RHINO_BUF_QUEUE_OBJ_TYPE) {
+        return 0;
+    }
+
+    return 1;
 }
 
 void *aos_queue_buf_ptr(aos_queue_t *queue)
@@ -484,7 +523,7 @@ void *aos_queue_buf_ptr(aos_queue_t *queue)
 
     return ((kbuf_queue_t *)queue->hdl)->buf;
 }
-
+#endif
 
 #if (RHINO_CONFIG_TIMER > 0)
 int aos_timer_new(aos_timer_t *timer, void (*fn)(void *, void *),
@@ -766,6 +805,7 @@ int aos_work_cancel(aos_work_t *work)
 AOS_EXPORT(int, aos_work_cancel, aos_work_t *);
 #endif
 
+#if (RHINO_CONFIG_MM_TLF > 0)
 void *aos_zalloc(unsigned int size)
 {
     void *tmp = NULL;
@@ -872,6 +912,7 @@ void aos_free(void *mem)
     krhino_mm_free(mem);
 }
 AOS_EXPORT(void, aos_free, void *);
+#endif
 
 long long aos_now(void)
 {
